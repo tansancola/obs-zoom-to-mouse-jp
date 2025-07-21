@@ -37,7 +37,11 @@ local zoom_target = nil
 local locked_center = nil
 local locked_last_pos = nil
 local hotkey_zoom_id = nil
+local hotkey_zoom_in_id = nil
+local hotkey_zoom_out_id = nil
 local hotkey_follow_id = nil
+local hotkey_follow_on_id = nil
+local hotkey_follow_off_id = nil
 local is_timer_running = false
 
 local win_point = nil
@@ -825,6 +829,38 @@ function on_toggle_follow(pressed)
     end
 end
 
+function on_toggle_follow_on(pressed)
+    if pressed then
+        is_following_mouse = true
+        log("Tracking mouse is " .. (is_following_mouse and "on" or "off"))
+
+        if is_following_mouse and zoom_state == ZoomState.ZoomedIn then
+            -- Since we are zooming we need to start the timer for the animation and tracking
+            if is_timer_running == false then
+                is_timer_running = true
+                local timer_interval = math.floor(obs.obs_get_frame_interval_ns() / 1000000)
+                obs.timer_add(on_timer, timer_interval)
+            end
+        end
+    end
+end
+
+function on_toggle_follow_off(pressed)
+    if pressed then
+        is_following_mouse = false
+        log("Tracking mouse is " .. (is_following_mouse and "on" or "off"))
+
+        if is_following_mouse and zoom_state == ZoomState.ZoomedIn then
+            -- Since we are zooming we need to start the timer for the animation and tracking
+            if is_timer_running == false then
+                is_timer_running = true
+                local timer_interval = math.floor(obs.obs_get_frame_interval_ns() / 1000000)
+                obs.timer_add(on_timer, timer_interval)
+            end
+        end
+    end
+end
+
 function on_toggle_zoom(pressed)
     if pressed then
         -- Check if we are in a safe state to zoom
@@ -858,6 +894,53 @@ function on_toggle_zoom(pressed)
                 local timer_interval = math.floor(obs.obs_get_frame_interval_ns() / 1000000)
                 obs.timer_add(on_timer, timer_interval)
             end
+        end
+    end
+end
+
+function on_toggle_zoom_out(pressed)
+    if pressed then
+        if zoom_state == ZoomState.ZoomingIn or zoom_state == ZoomState.ZoomedIn or zoom_state == ZoomState.None then
+            log("Zooming out")
+            -- To zoom out, we set the target back to whatever it was originally
+            zoom_state = ZoomState.ZoomingOut
+            zoom_time = 0
+            locked_center = nil
+            locked_last_pos = nil
+            zoom_target = { crop = crop_filter_info_orig, c = sceneitem_crop_orig }
+            if is_following_mouse then
+                is_following_mouse = false
+                log("Tracking mouse is off (due to zoom out)")
+            end
+        end
+
+        -- Since we are zooming we need to start the timer for the animation and tracking
+        if is_timer_running == false then
+            is_timer_running = true
+            local timer_interval = math.floor(obs.obs_get_frame_interval_ns() / 1000000)
+            obs.timer_add(on_timer, timer_interval)
+        end
+    end
+end
+
+function on_toggle_zoom_in(pressed)
+    if pressed then
+        if zoom_state == ZoomState.ZoomingOut or zoom_state == ZoomState.None then
+            log("Zooming in")
+            -- To zoom in, we get a new target based on where the mouse was when zoom was clicked
+            zoom_state = ZoomState.ZoomingIn
+            zoom_info.zoom_to = zoom_value
+            zoom_time = 0
+            locked_center = nil
+            locked_last_pos = nil
+            zoom_target = get_target_position(zoom_info)
+        end
+
+        -- Since we are zooming we need to start the timer for the animation and tracking
+        if is_timer_running == false then
+            is_timer_running = true
+            local timer_interval = math.floor(obs.obs_get_frame_interval_ns() / 1000000)
+            obs.timer_add(on_timer, timer_interval)
         end
     end
 end
@@ -1338,16 +1421,44 @@ function script_load(settings)
     hotkey_zoom_id = obs.obs_hotkey_register_frontend("toggle_zoom_hotkey", "Toggle zoom to mouse",
         on_toggle_zoom)
 
+    hotkey_zoom_in_id = obs.obs_hotkey_register_frontend("toggle_zoom_in_hotkey", "Zoom in to mouse",
+        on_toggle_zoom_in)
+
+    hotkey_zoom_out_id = obs.obs_hotkey_register_frontend("toggle_zoom_out_hotkey", "Zoom out to mouse",
+        on_toggle_zoom_out)
+
     hotkey_follow_id = obs.obs_hotkey_register_frontend("toggle_follow_hotkey", "Toggle follow mouse during zoom",
         on_toggle_follow)
+
+    hotkey_follow_on_id = obs.obs_hotkey_register_frontend("toggle_follow_on_hotkey", "Turn mouse tracking on",
+        on_toggle_follow_on)
+
+    hotkey_follow_off_id = obs.obs_hotkey_register_frontend("toggle_follow_off_hotkey", "Turn mouse tracking off",
+        on_toggle_follow_off)
 
     -- Attempt to reload existing hotkey bindings if we can find any
     local hotkey_save_array = obs.obs_data_get_array(settings, "obs_zoom_to_mouse.hotkey.zoom")
     obs.obs_hotkey_load(hotkey_zoom_id, hotkey_save_array)
     obs.obs_data_array_release(hotkey_save_array)
 
+    hotkey_save_array = obs.obs_data_get_array(settings, "obs_zoom_to_mouse.hotkey.zoom_in")
+    obs.obs_hotkey_load(hotkey_zoom_in_id, hotkey_save_array)
+    obs.obs_data_array_release(hotkey_save_array)
+
+    hotkey_save_array = obs.obs_data_get_array(settings, "obs_zoom_to_mouse.hotkey.zoom_out")
+    obs.obs_hotkey_load(hotkey_zoom_out_id, hotkey_save_array)
+    obs.obs_data_array_release(hotkey_save_array)
+
     hotkey_save_array = obs.obs_data_get_array(settings, "obs_zoom_to_mouse.hotkey.follow")
     obs.obs_hotkey_load(hotkey_follow_id, hotkey_save_array)
+    obs.obs_data_array_release(hotkey_save_array)
+
+    hotkey_save_array = obs.obs_data_get_array(settings, "obs_zoom_to_mouse.hotkey.follow_on")
+    obs.obs_hotkey_load(hotkey_follow_on_id, hotkey_save_array)
+    obs.obs_data_array_release(hotkey_save_array)
+
+    hotkey_save_array = obs.obs_data_get_array(settings, "obs_zoom_to_mouse.hotkey.follow_off")
+    obs.obs_hotkey_load(hotkey_follow_off_id, hotkey_save_array)
     obs.obs_data_array_release(hotkey_save_array)
 
     -- Load any other settings
@@ -1417,7 +1528,11 @@ function script_unload()
         end
 
         obs.obs_hotkey_unregister(on_toggle_zoom)
+        obs.obs_hotkey_unregister(on_toggle_zoom_in)
+        obs.obs_hotkey_unregister(on_toggle_zoom_out)
         obs.obs_hotkey_unregister(on_toggle_follow)
+        obs.obs_hotkey_unregister(on_toggle_follow_on)
+        obs.obs_hotkey_unregister(on_toggle_follow_off)
         obs.obs_frontend_remove_event_callback(on_frontend_event)
         release_sceneitem()
     end
@@ -1467,9 +1582,33 @@ function script_save(settings)
         obs.obs_data_array_release(hotkey_save_array)
     end
 
+    if hotkey_zoom_in_id ~= nil then
+        local hotkey_save_array = obs.obs_hotkey_save(hotkey_zoom_in_id)
+        obs.obs_data_set_array(settings, "obs_zoom_to_mouse.hotkey.zoom_in", hotkey_save_array)
+        obs.obs_data_array_release(hotkey_save_array)
+    end
+
+    if hotkey_zoom_out_id ~= nil then
+        local hotkey_save_array = obs.obs_hotkey_save(hotkey_zoom_out_id)
+        obs.obs_data_set_array(settings, "obs_zoom_to_mouse.hotkey.zoom_out", hotkey_save_array)
+        obs.obs_data_array_release(hotkey_save_array)
+    end
+
     if hotkey_follow_id ~= nil then
         local hotkey_save_array = obs.obs_hotkey_save(hotkey_follow_id)
         obs.obs_data_set_array(settings, "obs_zoom_to_mouse.hotkey.follow", hotkey_save_array)
+        obs.obs_data_array_release(hotkey_save_array)
+    end
+
+    if hotkey_follow_on_id ~= nil then
+        local hotkey_save_array = obs.obs_hotkey_save(hotkey_follow_on_id)
+        obs.obs_data_set_array(settings, "obs_zoom_to_mouse.hotkey.follow_on", hotkey_save_array)
+        obs.obs_data_array_release(hotkey_save_array)
+    end
+
+    if hotkey_follow_off_id ~= nil then
+        local hotkey_save_array = obs.obs_hotkey_save(hotkey_follow_off_id)
+        obs.obs_data_set_array(settings, "obs_zoom_to_mouse.hotkey.follow_off", hotkey_save_array)
         obs.obs_data_array_release(hotkey_save_array)
     end
 end
