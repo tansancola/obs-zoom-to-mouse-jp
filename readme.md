@@ -64,7 +64,11 @@ Inspired by [tryptech](https://github.com/tryptech)'s [obs-zoom-and-follow](http
 
 1. In OBS, open File -> Settings -> Hotkeys 
    * Add a hotkey for `Toggle zoom to mouse` to zoom in and out
+   * Add a hotkey for `Zoom in to mouse` to zoom in (*Optional*)
+   * Add a hotkey for `Zoom out to mouse` to zoom out (*Optional*)
    * Add a hotkey for `Toggle follow mouse during zoom` to turn mouse tracking on and off (*Optional*)
+   * Add a hotkey for `Turn mouse tracking on` to turn mouse tracking on while zooming (*Optional*)
+   * Add a hotkey for `Turn mouse tracking off` to turn off mouse tracking while zooming (*Optional*)
 
 ### Dual Machine Support
 1. The script also has some **basic** dual machine setup support. By using my related project [obs-zoom-to-mouse-remote](https://github.com/BlankSourceCode/obs-zoom-to-mouse-remote) you will be able to track the mouse on your second machine
