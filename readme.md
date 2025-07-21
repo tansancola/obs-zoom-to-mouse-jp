@@ -12,6 +12,7 @@ Inspired by [tryptech](https://github.com/tryptech)'s [obs-zoom-and-follow](http
 
 ## Example
 ![Usage Demo](obs-zoom-to-mouse.gif)
+![Hotkeys Settings](HotkeysSettings.jpg)
 
 ## Install
 1. Git clone the repo (or just save a copy of `obs-zoom-to-mouse.lua`)
