@@ -91,6 +91,95 @@ local m1, m2 = version:match("(%d+%.%d+)%.(%d+)")
 local major = tonumber(m1) or 0
 local minor = tonumber(m2) or 0
 
+-- Defining translation tables (multilingual support)
+local translations = {
+    ["en-US"] = {
+        script_description = "Zoom the selected display-capture source to focus on the mouse",
+        source = "Zoom Source",
+        refresh_sources = "Refresh zoom sources",
+        refresh_sources_tooltip = "Click to re-populate Zoom Sources dropdown with available sources.",
+        zoom_factor = "Zoom Factor",
+        zoom_speed = "Zoom Speed",
+        auto_follow = "Auto follow mouse",
+        auto_follow_tooltip = "When enabled mouse traking will auto-start when zoomed in without waiting for tracking toggle hotkey.",
+        follow_outside_bounds = "Follow outside bounds",
+        follow_outside_bounds_tooltip = "When enabled the mouse will be tracked even when the cursor is outside the bounds of the zoom source.",
+        follow_speed = "Follow Speed",
+        follow_border = "Follow Border",
+        lock_sensitivity = "Lock Sensitivity",
+        auto_lock_reverse = "Auto Lock on reverse direction",
+        auto_lock_reverse_tooltip = "When enabled moving the mouse to edge of the zoom source will begin tracking, but moving back towards the center will stop tracking simliar to panning the camera in a RTS game.",
+        allow_any_source = "Allow any zoom source",
+        allow_any_source_tooltip = "Enable to allow selecting any source as the Zoom Source. You MUST set manual source position for non-display capture sources",
+        desc_override_label = "When enabled the specified size/position settings will be used for the zoom source instead of the auto-calculated ones",
+        label_use_socket = "Enable remote mouse listener",
+        manual_position = "Set manual source position",
+        manual_position_tooltip = "When enabled the specified size/position settings will be used for the zoom source instead of the auto-calculated ones.",
+        more_info = "More Info",
+        more_info_tooltip = "Click to show help information (via the script log)",
+        debug_logging = "Enable debug logging",
+        debug_logging_tooltip = "When enabled the script will output diagnostics messages to the script log (useful for debugging/github issues).",
+        desc_r_port = "You must restart the server after changing the port (Uncheck then re-check 'Enable remote mouse listener')",
+        desc_r_poll = "You must restart the server after changing the poll delay (Uncheck then re-check 'Enable remote mouse listener')",
+        hotkey_toggle_zoom = "Toggle zoom to mouse",
+        hotkey_zoom_in = "Zoom in to mouse",
+        hotkey_zoom_out = "Zoom out to mouse",
+        hotkey_toggle_follow = "Toggle follow mouse during zoom",
+        hotkey_follow_on = "Turn mouse tracking on",
+        hotkey_follow_off = "Turn mouse tracking off",
+    },
+    ["ja-JP"] = {
+        script_description = "選択した画面キャプチャソースを拡大し、マウスカーソルに追従します。",
+        source = "ソース",
+        refresh_sources = "再読み込み",
+        refresh_sources_tooltip = "「ソース欄」のドロップダウンメニューが更新されます。",
+        zoom_factor = "拡大倍率",
+        zoom_speed = "拡大速度",
+        auto_follow = "最初から追従する",
+        auto_follow_tooltip = "ズームインした後にショートカットでカーソル追跡を開始しなくとも自動でカーソル追跡がはじまります。",
+        follow_outside_bounds = "画面外でも追従を続行する",
+        follow_outside_bounds_tooltip = "対象ソースの外にカーソルがあったとしてもカーソル追跡を続けます。",
+        follow_speed = "追従速度",
+        follow_border = "追従感度",
+        lock_sensitivity = "ロック感度（謎数値）",
+        auto_lock_reverse = "逆方向に動かしたら追従を停止する",
+        auto_lock_reverse_tooltip = "カーソル追跡中にカーソルを逆方向に動かすとカーソル追跡が一時的に停止します。",
+        allow_any_source = "選択できるソースの種類が増えます",
+        allow_any_source_tooltip = "任意のソースが選択可能になります。\n画面キャプチャ以外のソースについては、手動でソースの位置を設定する必要があります。",
+        desc_override_label = "有効にすると、自動計算された値ではなく、指定されたサイズ・位置設定がズームソースに使用されます。",
+        label_use_socket = "リモートマウスリスナーを有効化",
+        manual_position = "位置指定をする（複数モニタの場合）",
+        manual_position_tooltip = "手動でモニタサイズや範囲指定を行います。モニタ複製や複数モニタで利用する場合に使用します。",
+        more_info = "このスクリプトについて",
+        more_info_tooltip = "クリックするとヘルプ情報が表示されます（スクリプト ログ経由）",
+        desc_r_port = "ポートを変更した場合はサーバーを再起動する必要があります（「リモートマウスリスナーを有効化」を一度オフにしてから再度オンにしてください）",
+        desc_r_poll = "ポーリング間隔を変更した場合はサーバーを再起動する必要があります（「リモートマウスリスナーを有効化」を一度オフにしてから再度オンにしてください）",
+        debug_logging = "デバッグログを有効にする（生成されるログファイルのサイズが増大します）",
+        debug_logging_tooltip = "スクリプトがデバッグログにスクリプトの診断メッセージを出力します（これはデバッグやgithubでの報告の際に役立ちます）。",
+        hotkey_toggle_zoom = "追従スクリプト：ズームイン/アウトの切り替え",
+        hotkey_zoom_in = "追従スクリプト：ズームイン",
+        hotkey_zoom_out = "追従スクリプト：ズームアウト",
+        hotkey_toggle_follow = "追従スクリプト：マウス追従の切り替え",
+        hotkey_follow_on = "追従スクリプト：マウス追従開始",
+        hotkey_follow_off = "追従スクリプト：マウス追従停止",
+    }
+}
+
+local detected_locale = obs.obs_get_locale()
+local current_lang = translations[detected_locale] and detected_locale or "en-US"
+local function update_locale()
+    local locale = obs.obs_get_locale()
+    if translations[locale] ~= nil then
+        current_lang = locale
+    else
+        current_lang = "en-US"
+    end
+end
+
+local function tr(key)
+    return translations[current_lang][key] or key
+end
+
 -- Define the mouse cursor functions for each platform
 if ffi.os == "Windows" then
     ffi.cdef([[
@@ -1297,49 +1386,49 @@ function on_print_help()
 end
 
 function script_description()
-    return "選択した画面キャプチャソースを拡大し、マウスカーソルに追従します。"
+    return tr("script_description")
 end
 
 function script_properties()
     local props = obs.obs_properties_create()
 
     -- Populate the sources list with the known display-capture sources (OBS calls them 'monitor_capture' internally even though the UI says 'Display Capture')
-    local sources_list = obs.obs_properties_add_list(props, "source", "ソース", obs.OBS_COMBO_TYPE_LIST,
+    local sources_list = obs.obs_properties_add_list(props, "source", tr("source"), obs.OBS_COMBO_TYPE_LIST,
         obs.OBS_COMBO_FORMAT_STRING)
 
     populate_zoom_sources(sources_list)
 
-    local refresh_sources = obs.obs_properties_add_button(props, "refresh", "再読み込み",
+    local refresh_sources = obs.obs_properties_add_button(props, "refresh", tr("refresh_sources"),
         function()
             populate_zoom_sources(sources_list)
             monitor_info = get_monitor_info(source)
             return true
         end)
     obs.obs_property_set_long_description(refresh_sources,
-        "「ソース欄」のドロップダウンメニューが更新されます。")
+        tr("refresh_sources_tooltip"))
 
     -- Add the rest of the settings UI
-    local zoom = obs.obs_properties_add_float(props, "zoom_value", "拡大倍率", 1, 5, 0.5)
-    local zoom_speed = obs.obs_properties_add_float_slider(props, "zoom_speed", "拡大速度", 0.01, 1, 0.01)
-    local follow = obs.obs_properties_add_bool(props, "follow", "最初から追従する ")
+    local zoom = obs.obs_properties_add_float(props, "zoom_value", tr("zoom_factor"), 1, 5, 0.5)
+    local zoom_speed = obs.obs_properties_add_float_slider(props, "zoom_speed", tr("zoom_speed"), 0.01, 1, 0.01)
+    local follow = obs.obs_properties_add_bool(props, "follow", tr("auto_follow"))
     obs.obs_property_set_long_description(follow,
-        "ズームインした後にショートカットでカーソル追跡を開始しなくとも自動でカーソル追跡がはじまります。")
+        tr("auto_follow_tooltip"))
 
-    local follow_outside_bounds = obs.obs_properties_add_bool(props, "follow_outside_bounds", "画面外でも追従を続行する ")
+    local follow_outside_bounds = obs.obs_properties_add_bool(props, "follow_outside_bounds", tr("follow_outside_bounds"))
     obs.obs_property_set_long_description(follow_outside_bounds,
-        "対象ソースの外にカーソルがあったとしてもカーソル追跡を続けます。")
+        tr("follow_outside_bounds_tooltip"))
 
-    local follow_speed = obs.obs_properties_add_float_slider(props, "follow_speed", "追従速度 ", 0.01, 1, 0.01)
-    local follow_border = obs.obs_properties_add_int_slider(props, "follow_border", "追従感度 ", 0, 50, 1)
+    local follow_speed = obs.obs_properties_add_float_slider(props, "follow_speed", tr("follow_speed"), 0.01, 1, 0.01)
+    local follow_border = obs.obs_properties_add_int_slider(props, "follow_border", tr("follow_border"), 0, 50, 1)
     local safezone_sense = obs.obs_properties_add_int_slider(props,
-        "follow_safezone_sensitivity", "ロック感度（謎数値）", 1, 20, 1)
-    local follow_auto_lock = obs.obs_properties_add_bool(props, "follow_auto_lock", "逆方向に動かしたら追従を停止する ")
+        "follow_safezone_sensitivity", tr("lock_sensitivity"), 1, 20, 1)
+    local follow_auto_lock = obs.obs_properties_add_bool(props, "follow_auto_lock", tr("auto_lock_reverse"))
     obs.obs_property_set_long_description(follow_auto_lock,
-    "カーソル追跡中にカーソルを逆方向に動かすとカーソル追跡が一時的に停止します。")
+        tr("auto_lock_reverse_tooltip"))
 
-    local allow_all = obs.obs_properties_add_bool(props, "allow_all_sources", "選択できるソースの種類が増えます ")
-    obs.obs_property_set_long_description(allow_all, "任意のソースが選択可能になります。\n" ..
-        "画面キャプチャ以外のソースについては、手動でソースの位置を設定する必要があります。")
+    local allow_all = obs.obs_properties_add_bool(props, "allow_all_sources", tr("allow_any_source"))
+    obs.obs_property_set_long_description(allow_all, tr("allow_any_source_tooltip"))
+
     local override_props = obs.obs_properties_create();
     local override_label = obs.obs_properties_add_text(override_props, "monitor_override_label", "", obs.OBS_TEXT_INFO)
     local override_x = obs.obs_properties_add_int(override_props, "monitor_override_x", "X", -10000, 10000, 1)
@@ -1350,11 +1439,11 @@ function script_properties()
     local override_sy = obs.obs_properties_add_float(override_props, "monitor_override_sy", "Scale Y ", 0, 100, 0.01)
     local override_dw = obs.obs_properties_add_int(override_props, "monitor_override_dw", "Monitor Width ", 0, 10000, 1)
     local override_dh = obs.obs_properties_add_int(override_props, "monitor_override_dh", "Monitor Height ", 0, 10000, 1)
-    local override = obs.obs_properties_add_group(props, "use_monitor_override", "位置指定をする（複数モニタの場合） ",
+    local override = obs.obs_properties_add_group(props, "use_monitor_override", tr("manual_position"),
         obs.OBS_GROUP_CHECKABLE, override_props)
 
     obs.obs_property_set_long_description(override_label,
-        "手動でモニタサイズや範囲指定を行います。モニタ複製や複数モニタで利用する場合に使用します。")
+        tr("desc_override_label"))
     obs.obs_property_set_long_description(override_sx, "Usually 1 - unless you are using a scaled source")
     obs.obs_property_set_long_description(override_sy, "Usually 1 - unless you are using a scaled source")
     obs.obs_property_set_long_description(override_dw, "X resolution of your montior")
@@ -1365,15 +1454,15 @@ function script_properties()
         local r_label = obs.obs_properties_add_text(socket_props, "socket_label", "", obs.OBS_TEXT_INFO)
         local r_port = obs.obs_properties_add_int(socket_props, "socket_port", "Port ", 1024, 65535, 1)
         local r_poll = obs.obs_properties_add_int(socket_props, "socket_poll", "Poll Delay (ms) ", 0, 1000, 1)
-        local socket = obs.obs_properties_add_group(props, "use_socket", "Enable remote mouse listener ",
+        local socket = obs.obs_properties_add_group(props, "use_socket", tr("label_use_socket"),
             obs.OBS_GROUP_CHECKABLE, socket_props)
 
         obs.obs_property_set_long_description(r_label,
-            "When enabled a UDP socket server will listen for mouse position messages from a remote client")
+            tr("manual_position_tooltip"))
         obs.obs_property_set_long_description(r_port,
-            "You must restart the server after changing the port (Uncheck then re-check 'Enable remote mouse listener')")
+            tr("desc_r_port"))
         obs.obs_property_set_long_description(r_poll,
-            "You must restart the server after changing the poll delay (Uncheck then re-check 'Enable remote mouse listener')")
+        tr("desc_r_poll"))
 
         obs.obs_property_set_visible(r_label, not use_socket)
         obs.obs_property_set_visible(r_port, use_socket)
@@ -1382,13 +1471,13 @@ function script_properties()
     end
 
     -- Add a button for more information
-    local help = obs.obs_properties_add_button(props, "help_button", "このスクリプトについて", on_print_help)
+    local help = obs.obs_properties_add_button(props, "help_button", tr("more_info"), on_print_help)
     obs.obs_property_set_long_description(help,
-        "クリックするとヘルプ情報が表示されます（スクリプト ログ経由）")
+        tr("more_info_tooltip"))
 
-    local debug = obs.obs_properties_add_bool(props, "debug_logs", "デバッグログを有効にする（生成されるログファイルのサイズが増大します） ")
+    local debug = obs.obs_properties_add_bool(props, "debug_logs", tr("debug_logging"))
     obs.obs_property_set_long_description(debug,
-        "スクリプトがデバッグログにスクリプトの診断メッセージを出力します（これはデバッグやgithubでの報告の際に役立ちます）。")
+        tr("debug_logging_tooltip"))
 
     obs.obs_property_set_visible(override_label, not use_monitor_override)
     obs.obs_property_set_visible(override_x, use_monitor_override)
@@ -1408,6 +1497,7 @@ function script_properties()
 end
 
 function script_load(settings)
+    update_locale()
     sceneitem_info_orig = nil
 
     -- Workaround for detecting if OBS is already loaded and we were reloaded using "Reload Scripts"
@@ -1416,22 +1506,22 @@ function script_load(settings)
     obs.obs_source_release(current_scene)
 
     -- Add our hotkey
-    hotkey_zoom_id = obs.obs_hotkey_register_frontend("toggle_zoom_hotkey", "追従スクリプト：ズームイン/アウトの切り替え",
+    hotkey_zoom_id = obs.obs_hotkey_register_frontend("toggle_zoom_hotkey", tr("hotkey_toggle_zoom"),
         on_toggle_zoom)
 
-    hotkey_zoom_in_id = obs.obs_hotkey_register_frontend("toggle_zoom_in_hotkey", "追従スクリプト：ズームイン",
+    hotkey_zoom_in_id = obs.obs_hotkey_register_frontend("toggle_zoom_in_hotkey", tr("hotkey_zoom_in"),
         on_toggle_zoom_in)
 
-    hotkey_zoom_out_id = obs.obs_hotkey_register_frontend("toggle_zoom_out_hotkey", "追従スクリプト：ズームアウト",
+    hotkey_zoom_out_id = obs.obs_hotkey_register_frontend("toggle_zoom_out_hotkey", tr("hotkey_zoom_out"),
         on_toggle_zoom_out)
 
-    hotkey_follow_id = obs.obs_hotkey_register_frontend("toggle_follow_hotkey", "追従スクリプト：マウス追従の切り替え",
+    hotkey_follow_id = obs.obs_hotkey_register_frontend("toggle_follow_hotkey", tr("hotkey_toggle_follow"),
         on_toggle_follow)
 
-    hotkey_follow_on_id = obs.obs_hotkey_register_frontend("toggle_follow_on_hotkey", "追従スクリプト：マウス追従開始",
+    hotkey_follow_on_id = obs.obs_hotkey_register_frontend("toggle_follow_on_hotkey", tr("hotkey_follow_on"),
         on_toggle_follow_on)
 
-    hotkey_follow_off_id = obs.obs_hotkey_register_frontend("toggle_follow_off_hotkey", "追従スクリプト：マウス追従停止",
+    hotkey_follow_off_id = obs.obs_hotkey_register_frontend("toggle_follow_off_hotkey", tr("hotkey_follow_off"),
         on_toggle_follow_off)
 
     -- Attempt to reload existing hotkey bindings if we can find any
